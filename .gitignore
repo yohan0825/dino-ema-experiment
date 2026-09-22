@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+runs/
+benchmark_runs/
+smoke_runs/
+test_runs/
+*.pt
+*.log
+*.bak
+.env
+.run.lock
