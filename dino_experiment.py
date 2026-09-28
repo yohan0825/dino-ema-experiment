@@ -515,11 +515,14 @@ def configure_runtime(args):
     torch.backends.cudnn.allow_tf32 = False
     if args.device == "cuda":
         device = choose_device(args.device)
-        total = torch.cuda.get_device_properties(device).total_memory
+        # The memory-fraction API rejects torch.device('cuda') without an index.
+        # Resolve the current logical device, respecting CUDA_VISIBLE_DEVICES.
+        device_index = device.index if device.index is not None else torch.cuda.current_device()
+        total = torch.cuda.get_device_properties(device_index).total_memory
         budget = args.gpu_memory_gib*2**30
         if budget > total:
             raise ValueError("GPU allocator budget exceeds device capacity")
-        torch.cuda.set_per_process_memory_fraction(budget/total, device)
+        torch.cuda.set_per_process_memory_fraction(budget/total, device_index)
 
 
 def train(args):

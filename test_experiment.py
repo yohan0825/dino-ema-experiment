@@ -5,6 +5,7 @@ import copy
 import io
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 import torch
 from torch import nn
@@ -22,6 +23,18 @@ class Toy(nn.Module):
                 p.fill_(1.)
 
 class ExperimentTests(unittest.TestCase):
+    def test_cuda_memory_cap_resolves_unindexed_device(self):
+        args = argparse.Namespace(threads=1, workers=0, eval_batch=64,
+                                  gpu_memory_gib=10.5, device="cuda")
+        properties = argparse.Namespace(total_memory=24 * 2**30)
+        with patch.object(d, "choose_device", return_value=torch.device("cuda")), \
+             patch.object(torch.cuda, "current_device", return_value=2), \
+             patch.object(torch.cuda, "get_device_properties", return_value=properties) as get_properties, \
+             patch.object(torch.cuda, "set_per_process_memory_fraction") as set_fraction:
+            d.configure_runtime(args)
+            get_properties.assert_called_once_with(2)
+            set_fraction.assert_called_once_with(10.5 / 24, 2)
+
     def test_deterministic_resize_matches_bicubic_value_and_gradient(self):
         d.seed_all(17)
         model = d.Backbone(48)
