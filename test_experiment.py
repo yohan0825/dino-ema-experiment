@@ -87,7 +87,9 @@ class ExperimentTests(unittest.TestCase):
     def test_full_training_resume_at_adaptive_boundary(self):
         with tempfile.TemporaryDirectory() as folder:
             def args(out, until, resume=False):
-                return argparse.Namespace(device="cpu", threads=2, workers=0,
+                # Isolate exact checkpoint replay from CPU parallel reduction rounding.
+                # Production thread counts remain unchanged in server.py.
+                return argparse.Namespace(device="cpu", threads=1, workers=0,
                     batch=10, eval_batch=10, gpu_memory_gib=10.5, until=until,
                     momentum=.996, clip_low=.5, clip_high=2., data=str(Path(folder)/"data"),
                     smoke=True, seed=0, method="G", out=str(Path(folder)/out), resume=resume)

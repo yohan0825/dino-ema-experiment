@@ -1,5 +1,33 @@
 # Validation
 
+## uv and project-local storage (2026-09-27)
+
+Final local check on 2026-09-28: `python -B run.py test` ran 9 tests in
+45.347 seconds: 8 PASS, 1 SKIP (Windows symlink permission). The added removal
+test creates a real uv venv, Matplotlib plot/font cache, PyTorch checkpoint and
+temporary file in a generated project, deletes that project, and verifies the
+external sentinel cache is unchanged. No user data is deleted by the test.
+The actual cache-path audit and Bash syntax/diff checks also pass.
+
+- Windows, existing CPython 3.11.9, uv 0.12.6; clean `.venv-uv-cpu` created from `uv.lock`.
+- `python -B run.py test`: 8 tests, 7 PASS, 1 SKIP (Windows symlink creation permission).
+- Existing exact checkpoint replay assertions are retained. The CPU replay test now
+  uses one thread: the initial two-thread run differed by 9.31e-10 in a parameter;
+  the single-thread run passed exact equality. This does not prove bitwise replay
+  across platforms or production multithreaded runs. Production threads remain 4.
+- `python -B run.py audit`: actual uv cache, tempfile, Matplotlib config/cache,
+  and PyTorch hub paths all resolve inside the repository. Report: `.runtime/audit.json`.
+- Inherited external uv/venv/temp settings are overridden in the child environment;
+  parent environment is unchanged. Path traversal rejection is tested.
+- `bash -n server.sh` and `git diff --check` pass.
+- `dino_experiment.py` is unchanged, including EMA formulas, model and training settings.
+- CUDA/A5000 execution, Docker image build/runtime, and Linux CI have not been run
+  for this update. The configured CUDA cache path has not been verified by a GPU run.
+- This is an application-storage audit, not a full OS write trace. Docker images,
+  historical global caches, OS logs, and pre-existing tools are not automatically removed.
+
+## Previous validation
+
 Local validation: Windows, Python 3.13.14, PyTorch 2.7.1+cpu,
 torchvision 0.22.1+cpu, numpy 2.2.6, Pillow 11.2.1.
 

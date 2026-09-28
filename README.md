@@ -3,9 +3,96 @@
 RTX A5000 24GB / RAM 128GB 서버에서 일부 자원만 사용하는 독립적인 소규모 DINO 실험입니다.
 공식 DINO 성능 재현이나 성능 개선을 주장하지 않습니다.
 
-## 자원 제한
+## uv로 실행: 폴더 안에 설치·캐시·결과 보관
 
-공식 실행 경로는 **Linux + Docker + NVIDIA Container Toolkit**입니다.
+기존 Python **3.11~3.13**과 **uv 0.12.6 이상**이 필요합니다. 아래 실행기는 전역
+패키지 설치, Python 자동 다운로드, PATH/셸 설정 변경을 하지 않습니다.
+의존성은 `pyproject.toml`과 커밋된 `uv.lock`으로 고정합니다.
+
+```bash
+git clone https://github.com/yohan0825/dino-ema-experiment.git
+cd dino-ema-experiment
+python run.py audit
+python run.py test
+
+# Linux NVIDIA 서버: CUDA 12.6용 PyTorch, GPU 1개에서 순차 실행
+python run.py --backend cu126 check
+python run.py --backend cu126 pilot
+# 파일럿 결과를 검토한 뒤
+python run.py --backend cu126 main
+python run.py --backend cu126 final
+# 실험 선택이 끝난 후에만
+python run.py --backend cu126 final-test
+```
+
+Linux에서 명령 이름이 `python3`이면 위의 `python`을 `python3`으로 바꾸세요.
+Windows에서는 `python run.py test`, `self-test`, `smoke`, `audit`를 사용할 수 있습니다.
+`python run.py smoke`는 합성 데이터 검증이며 실제 CIFAR 성능 실험이 아닙니다.
+가상환경 activation은 필요 없습니다. 설치만 하려면 `python run.py --backend cpu sync`
+또는 `python run.py --backend cu126 sync`를 사용하세요.
+
+**이 uv 직접 실행 경로에는 Docker의 RAM 32GiB·CPU quota 강제 제한이 없습니다.**
+PyTorch thread 4, loader worker 2, GPU allocator 10.5GiB 설정은 서버 학습에 유지됩니다.
+공유 서버에서 RAM/CPU 강제 제한이 필요하면 아래 Docker 경로를 사용하거나 관리자의
+작업 스케줄러 안에서 실행하세요. 실험 중 실행 방식과 자원 조건을 섞지 마세요.
+
+### uv가 없다면
+
+이미 설치된 uv를 사용하거나 [공식 uv 릴리스](https://github.com/astral-sh/uv/releases/tag/0.12.6)에서
+운영체제에 맞는 standalone 압축파일을 **이 저장소 안에 다운로드하고 압축 해제**하세요.
+실행파일이 Linux에서는 `.tools/uv`, Windows에서는 `.tools/uv.exe`가 되도록 두면
+`run.py`가 우선 사용합니다. Linux 파일에는 실행 권한이 필요합니다.
+전역 설치 스크립트나 `uv tool install`을 실행할 필요는 없습니다.
+Python·NVIDIA 드라이버는 기존 서버의 것을 사용하며 이 프로젝트가 설치하거나 삭제하지 않습니다.
+
+### 삭제할 때 남는 것 점검
+
+지원하는 `python run.py ...` 경로에서 프로젝트가 관리하는 파일은 다음 위치에 저장됩니다.
+
+| 항목 | 저장소 내부 위치 |
+|---|---|
+| CPU / CUDA 가상환경 | `.venv-uv-cpu/`, `.venv-uv-cu126/` |
+| uv 다운로드·패키지 캐시 | `.runtime/uv-cache/` |
+| 임시파일 | `.runtime/tmp/` |
+| Matplotlib 설정·폰트 캐시 | `.runtime/matplotlib/` |
+| PyTorch·CUDA·확장/컴파일 캐시 | `.runtime/` 아래 각 전용 폴더 |
+| 데이터 | `data/` |
+| 결과·체크포인트 | `runs/`, `benchmark_runs/`, `smoke_runs/` |
+| 선택적인 standalone uv | `.tools/` |
+
+작업을 종료한 뒤 저장소 폴더를 삭제하면 위 파일들이 함께 삭제됩니다.
+탐색기에서 삭제할 때 휴지통으로 이동했다면 디스크 공간은 휴지통을 비워야 반환됩니다.
+실행기의 환경변수는 자식 프로세스에만 전달되며 터미널·사용자 환경을 영구 변경하지 않습니다.
+기존 `.venv`는 자동으로 삭제하지 않으며, 역시 저장소 안에 있습니다.
+폴더 이름을 바꾸거나 다른 서버로 옮긴 가상환경은 재사용하지 말고 해당 가상환경을 재생성하세요.
+
+`python run.py audit`로 설정 경로와 실제 임시파일·uv 캐시 위치를 확인할 수 있습니다.
+선택한 backend의 환경이 설치되어 있으면 Matplotlib·PyTorch의 실제 캐시 경로도 검사합니다.
+보고서는 `.runtime/audit.json`에 저장됩니다. CUDA 환경 검사에는 `--backend cu126`을 붙이세요.
+일반 `uv run`/`pip`/직접 Python 실행으로 실행기를 우회하거나, 저장 경로를 수정하면
+이 경로 관리가 적용되지 않습니다. 외부를 가리키는 최상위 출력·캐시 경로의
+symlink/junction은 실행기가 거부합니다. 출력 폴더 내부에도 외부 링크를 만들지 마세요.
+
+**이전 실행에서 생긴 공용 캐시나 Docker 이미지가 자동으로 지워지는 것은 아닙니다.**
+공용 캐시는 다른 프로젝트와 공유될 수 있어 자동 삭제하지 않습니다. OS/드라이버 로그,
+셸 명령 이력, 기존 Python·uv·Git·드라이버는 프로젝트 파일 관리 범위 밖입니다.
+따라서 OS 수준의 모든 흔적이 사라진다는 보장은 하지 않습니다.
+
+### Docker 경로의 외부 잔여물
+
+Docker 빌드/실행은 이미지와 빌드 캐시를 Docker 저장소에 남기므로 **폴더 삭제만으로 정리되지 않습니다.**
+Docker가 필요 없고 폴더 단위 정리가 우선이면 위 uv 직접 실행을 사용하세요.
+Docker 경로도 이제 uv와 같은 `uv.lock`으로 패키지를 설치합니다.
+컨테이너는 기존처럼 `--rm`이며 데이터는 저장소 bind mount에 보관합니다.
+
+이 프로젝트의 Docker 사용을 끝낸 뒤 컨테이너가 실행 중이지 않은 상태에서
+`docker image rm dino-ema:1.1`로 해당 이미지 태그를 제거할 수 있습니다.
+공유 base image와 빌드 캐시는 남을 수 있습니다. **공유 서버에서 `docker system prune`이나
+전역 cache 삭제 명령을 실행하지 마세요.** 필요하면 관리자와 소유 자원을 확인하여 정리하세요.
+
+## Docker 자원 제한
+
+아래 강제 자원 제한을 적용하는 실행 경로는 **Linux + Docker + NVIDIA Container Toolkit**입니다.
 
 | 항목 | 기본값 | 적용 범위 |
 |---|---:|---|
@@ -28,7 +115,7 @@ Docker의 32g는 32 GiB입니다. CPU quota는 특정 물리 코어 네 개를 �
 같은 이름의 컨테이너와 파일 잠금으로 중복 실행을 막고, B/C/G와 seed는 **한 번에 하나씩** 실행합니다.
 다른 폴더/이름으로 직접 여러 컨테이너를 실행하면 자원 제한은 컨테이너마다 적용됩니다.
 
-## 서버에서 시작
+## Docker로 서버에서 시작
 
 필요 조건: Linux x86_64, NVIDIA 드라이버(CUDA 12.6 wheel 실행을 지원하는 버전),
 Docker 실행 권한, NVIDIA Container Toolkit, Git, 최초 설치/데이터 다운로드용 인터넷.
@@ -165,11 +252,7 @@ watch -n 2 nvidia-smi
 ## 로컬 CPU 검증
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu
-python -m pip install -r requirements.txt
-python -m unittest -v test_experiment
+python run.py test
 ```
 
 이 테스트는 합성 데이터로 수식·clipping·시간 비용 분류·그룹 분할·adaptive 경계에서의

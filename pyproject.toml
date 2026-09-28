@@ -1,0 +1,29 @@
+[project]
+name = "dino-ema-experiment"
+version = "1.1.0"
+requires-python = ">=3.11,<3.14"
+dependencies = ["numpy==2.2.6", "Pillow==11.2.1", "matplotlib==3.10.3"]
+
+[project.optional-dependencies]
+cpu = ["torch==2.7.1", "torchvision==0.22.1"]
+cu126 = ["torch==2.7.1", "torchvision==0.22.1"]
+
+[tool.uv]
+package = false
+required-version = ">=0.12.6"
+environments = ["sys_platform == 'linux' or sys_platform == 'win32'"]
+conflicts = [[{extra = "cpu"}, {extra = "cu126"}]]
+
+[tool.uv.sources]
+torch = [{index = "pytorch-cpu", extra = "cpu"}, {index = "pytorch-cu126", extra = "cu126"}]
+torchvision = [{index = "pytorch-cpu", extra = "cpu"}, {index = "pytorch-cu126", extra = "cu126"}]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true

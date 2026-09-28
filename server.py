@@ -48,7 +48,7 @@ def check():
         report[name] = path.read_text().strip() if path.exists() else "cgroup v2 file unavailable"
     print(json.dumps(report, indent=2))
     subprocess.run(["nvidia-smi"], check=True)
-    print("Check docker stats: CPU quota=4, memory limit=32 GiB. GPU compute utilization is not capped.")
+    print("Docker mode: check docker stats for CPU quota=4, RAM=32 GiB. Native uv mode has no such hard quotas. GPU compute utilization is not capped.")
 
 def benchmark():
     train("B", 0, 1, "benchmark_runs")

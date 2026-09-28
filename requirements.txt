@@ -1,3 +1,5 @@
+# Legacy reference only. Supported installation: python run.py test / sync.
+# pyproject.toml + uv.lock are the dependency source of truth.
 numpy==2.2.6
 Pillow==11.2.1
 matplotlib==3.10.3

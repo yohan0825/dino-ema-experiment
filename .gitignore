@@ -1,4 +1,7 @@
 .venv/
+.venv-uv-*/
+.runtime/
+.tools/
 __pycache__/
 *.pyc
 data/
