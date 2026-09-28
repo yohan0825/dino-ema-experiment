@@ -5,9 +5,27 @@ RTX A5000 24GB / RAM 128GB 서버에서 일부 자원만 사용하는 독립적�
 
 ## uv로 실행: 폴더 안에 설치·캐시·결과 보관
 
-기존 Python **3.11~3.13**과 **uv 0.12.6 이상**이 필요합니다. 아래 실행기는 전역
-패키지 설치, Python 자동 다운로드, PATH/셸 설정 변경을 하지 않습니다.
+서버에 기존 Python **3.11 이상(3.14도 가능)**과 **uv 0.12.6 이상**이 필요합니다.
+실행기가 uv로 **학습용 Python 3.11을 `.runtime/python/` 안에만 자동 다운로드**합니다.
+전역 패키지 설치, 시스템 Python 교체, 레지스트리 등록, PATH/셸 설정 변경은 하지 않습니다.
 의존성은 `pyproject.toml`과 커밋된 `uv.lock`으로 고정합니다.
+
+**Linux GPU 서버에서 최소 실행 명령 (기본값: 1 epoch 벤치마크)**:
+
+```bash
+git clone https://github.com/yohan0825/dino-ema-experiment.git
+cd dino-ema-experiment
+python3 -B run.py
+```
+
+공개 저장소이므로 다운로드에 GitHub 로그인이 필요하지 않습니다.
+이미 받은 폴더라면 그 안에서 `git pull` 후 `python3 -B run.py`를 실행하세요.
+`-B`는 실행기 자체가 Python 바이트코드 캐시를 쓰지 않도록 합니다.
+관리자가 지정한 GPU가 0번 이외라면 마지막 명령을 `GPU_DEVICE=1 python3 -B run.py`처럼 바꾸세요.
+스케줄러가 `CUDA_VISIBLE_DEVICES`를 설정한 작업 환경에서는 이를 그대로 따르며,
+그때는 `GPU_DEVICE`를 따로 지정하지 마세요. GPU 배정은 서버 관리자 지침을 따릅니다.
+Python·패키지·데이터 다운로드 → CUDA 검사 → B seed0 1 epoch → 예상 시간 출력을 자동 수행합니다.
+결과는 `benchmark_runs/estimate.json`에도 저장됩니다. 전체 실험은 자동 시작하지 않습니다.
 
 ```bash
 git clone https://github.com/yohan0825/dino-ema-experiment.git
@@ -43,7 +61,7 @@ PyTorch thread 4, loader worker 2, GPU allocator 10.5GiB 설정은 서버 학습
 실행파일이 Linux에서는 `.tools/uv`, Windows에서는 `.tools/uv.exe`가 되도록 두면
 `run.py`가 우선 사용합니다. Linux 파일에는 실행 권한이 필요합니다.
 전역 설치 스크립트나 `uv tool install`을 실행할 필요는 없습니다.
-Python·NVIDIA 드라이버는 기존 서버의 것을 사용하며 이 프로젝트가 설치하거나 삭제하지 않습니다.
+시스템 Python·NVIDIA 드라이버는 변경하지 않습니다. 학습용 Python 3.11만 프로젝트 내부에 받습니다.
 
 ### 삭제할 때 남는 것 점검
 
@@ -52,6 +70,7 @@ Python·NVIDIA 드라이버는 기존 서버의 것을 사용하며 이 프로�
 | 항목 | 저장소 내부 위치 |
 |---|---|
 | CPU / CUDA 가상환경 | `.venv-uv-cpu/`, `.venv-uv-cu126/` |
+| 학습용 Python 3.11 | `.runtime/python/` |
 | uv 다운로드·패키지 캐시 | `.runtime/uv-cache/` |
 | 임시파일 | `.runtime/tmp/` |
 | Matplotlib 설정·폰트 캐시 | `.runtime/matplotlib/` |
@@ -126,8 +145,7 @@ Docker 실행 권한, NVIDIA Container Toolkit, Git, 최초 설치/데이터 다
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - [PyTorch 버전 조합](https://pytorch.org/get-started/previous-versions/)
 
-비공개 저장소는 서버의 GitHub SSH 또는 HTTPS 인증을 먼저 설정하세요.
-비밀번호나 토큰을 코드에 넣지 마세요.
+공개 저장소이므로 clone에 GitHub 인증은 필요하지 않습니다.
 
 ```bash
 git clone https://github.com/yohan0825/dino-ema-experiment.git

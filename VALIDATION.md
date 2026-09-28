@@ -1,5 +1,17 @@
 # Validation
 
+## Project-local Python bootstrap (2026-09-28)
+
+`run.py` now accepts a host Python >=3.11, including 3.14, and uses uv to
+install training Python 3.11 only under `.runtime/python`. Installation explicitly
+disables bin links and Windows registry registration. `audit` verifies the resolved
+interpreter belongs to the project. The Linux CI host is now Python 3.14 to exercise
+this bootstrap path. The default command is the one-epoch GPU benchmark.
+
+The existing application-storage scope still applies: no global Python replacement,
+PATH/profile edit, or automatic deletion of historical caches; Docker resources and
+OS logs are outside the folder-deletion guarantee.
+
 ## uv and project-local storage (2026-09-27)
 
 Final local check on 2026-09-28: `python -B run.py test` ran 9 tests in

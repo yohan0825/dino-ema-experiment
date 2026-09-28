@@ -1,7 +1,8 @@
 """uv launcher: project-owned environments, caches and temporary files stay here.
 
-Requires an existing Python 3.11-3.13 and uv >=0.12.6. Does not install either
-globally, download Python, edit shell profiles, or change the parent environment.
+Bootstrap with an existing Python >=3.11 (including 3.14) and uv >=0.12.6.
+uv downloads Python 3.11 into .runtime/python; no global installation, registry
+entry, shell profile change, or persistent PATH change is made.
 """
 import argparse
 import json
@@ -13,6 +14,26 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 STAGES = ("check", "benchmark", "pilot", "main", "final", "final-test")
+
+
+def find_uv():
+    local_uv = ROOT / ".tools" / ("uv.exe" if os.name == "nt" else "uv")
+    uv = str(local_uv) if local_uv.is_file() else shutil.which("uv")
+    if not uv:
+        raise RuntimeError("uv not found. Use the server's uv or put a standalone executable in .tools/. See README.")
+    return uv
+
+
+def project_python(uv, env):
+    install_env = dict(env, UV_PYTHON_DOWNLOADS="automatic")
+    subprocess.run([uv, "python", "install", "3.11", "--no-bin", "--no-registry"],
+                   cwd=ROOT, env=install_env, check=True)
+    executable = subprocess.check_output(
+        [uv, "python", "find", "3.11", "--managed-python", "--no-python-downloads"],
+        cwd=ROOT, env=env, text=True).strip()
+    if not Path(executable).resolve().is_relative_to(Path(env["UV_PYTHON_INSTALL_DIR"]).resolve()):
+        raise RuntimeError(f"Managed Python escaped project: {executable}")
+    return executable
 
 
 def inside(root, relative):
@@ -74,26 +95,33 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=("cpu", "cu126"))
     parser.add_argument("--installed", action="store_true", help="Use container's preinstalled environment; no uv sync")
-    parser.add_argument("command", choices=("lock", "sync", "test", "audit", "self-test", "smoke", "summary", *STAGES))
+    parser.add_argument("command", nargs="?", default="benchmark", choices=("lock", "sync", "test", "audit", "self-test", "smoke", "summary", *STAGES))
     args = parser.parse_args()
     backend = args.backend or ("cu126" if args.command in STAGES else "cpu")
-    if not (3, 11) <= sys.version_info[:2] < (3, 14):
-        parser.error("Use an existing Python 3.11, 3.12 or 3.13. No global Python will be installed.")
+    if sys.version_info[:2] < (3, 11):
+        parser.error("The bootstrap launcher requires Python >=3.11. Training uses project-local Python 3.11.")
     if args.command in STAGES and (sys.platform != "linux" or backend != "cu126"):
         parser.error("GPU server stages require Linux and --backend cu126.")
     env = local_environment(ROOT, backend)
+    if args.installed:
+        if not (3, 11) <= sys.version_info[:2] < (3, 14):
+            parser.error("--installed requires a preinstalled Python 3.11-3.13 environment")
+        python_executable = sys.executable
+        uv = None
+    else:
+        uv = find_uv()
+        python_executable = project_python(uv, env)
     if args.command == "audit":
         # Does not download dependencies. Tests actual stdlib/uv paths in child processes.
         report = {k: v for k, v in env.items() if k in (
             "UV_PROJECT_ENVIRONMENT", "UV_CACHE_DIR", "MPLCONFIGDIR", "TORCH_HOME", "CUDA_CACHE_PATH", "TEMP")}
         report["project"] = str(ROOT)
+        report["python_executable"] = python_executable
         report["tempfile_actual"] = subprocess.check_output(
-            [sys.executable, "-B", "-c", "import tempfile; print(tempfile.gettempdir())"],
+            [python_executable, "-B", "-c", "import tempfile; print(tempfile.gettempdir())"],
             cwd=ROOT, env=env, text=True).strip()
         if not Path(report["tempfile_actual"]).resolve().is_relative_to(ROOT):
             raise RuntimeError("Temporary directory escaped project")
-        local_uv = ROOT / ".tools" / ("uv.exe" if os.name == "nt" else "uv")
-        uv = str(local_uv) if local_uv.is_file() else shutil.which("uv")
         if uv:
             actual = subprocess.check_output([uv, "cache", "dir"], cwd=ROOT, env=env, text=True).strip()
             if not Path(actual).resolve().is_relative_to(ROOT):
@@ -125,11 +153,7 @@ def main():
             parser.error("--installed cannot lock/sync")
         prefix = [sys.executable, "-B"]
     else:
-        local_uv = ROOT / ".tools" / ("uv.exe" if os.name == "nt" else "uv")
-        uv = str(local_uv) if local_uv.is_file() else shutil.which("uv")
-        if not uv:
-            parser.error("uv not found. Put the standalone uv executable in .tools/ or use an existing uv on PATH. See README.")
-        common = ["--project", str(ROOT), "--python", sys.executable, "--no-managed-python"]
+        common = ["--project", str(ROOT), "--python", python_executable, "--no-python-downloads"]
         if args.command == "lock":
             subprocess.run([uv, "lock", *common], cwd=ROOT, env=env, check=True)
             return

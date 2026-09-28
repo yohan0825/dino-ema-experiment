@@ -11,7 +11,7 @@
 
 ## 저장소와 확인 범위
 
-- GitHub: https://github.com/yohan0825/dino-ema-experiment (비공개)
+- GitHub: https://github.com/yohan0825/dino-ema-experiment (공개 전환)
 - 로컬 경로: `C:\Users\LG\dino_experiments`
 - 확인한 커밋: `3b97154335332a82af73df55dcce01352a3d45e1`
 - 확인 당시 로컬 코드와 GitHub main의 커밋이 일치했다.

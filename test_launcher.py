@@ -7,10 +7,31 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import run
 
 
 class LauncherTests(unittest.TestCase):
+    def test_python_bootstrap_stays_local_without_global_registration(self):
+        with tempfile.TemporaryDirectory(dir=run.ROOT) as tmp:
+            root = Path(tmp).resolve()
+            env = run.local_environment(root, "cpu")
+            executable = root / ".runtime/python/cpython-3.11/bin/python3"
+            with patch.object(run.subprocess, "run") as install, patch.object(
+                    run.subprocess, "check_output", return_value=str(executable)):
+                self.assertEqual(run.project_python("uv", env), str(executable))
+                command = install.call_args.args[0]
+                self.assertIn("--no-bin", command)
+                self.assertIn("--no-registry", command)
+                self.assertEqual(install.call_args.kwargs["env"]["UV_PYTHON_INSTALL_DIR"],
+                                 str(root / ".runtime/python"))
+                self.assertEqual(install.call_args.kwargs["env"]["UV_PYTHON_DOWNLOADS"], "automatic")
+                self.assertEqual(env["UV_PYTHON_DOWNLOADS"], "never")
+            with patch.object(run.subprocess, "run"), patch.object(
+                    run.subprocess, "check_output", return_value=str(root.parent / "outside-python")):
+                with self.assertRaises(RuntimeError):
+                    run.project_python("uv", env)
+
     def test_project_removal_cleans_runtime_outputs(self):
         # The whole fixture is inside this repository; never delete user cache paths.
         with tempfile.TemporaryDirectory(dir=run.ROOT) as tmp:
