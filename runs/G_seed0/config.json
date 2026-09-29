@@ -1,0 +1,21 @@
+{
+  "version": "1.1",
+  "method": "G",
+  "seed": 0,
+  "batch": 64,
+  "threads": 4,
+  "eval_batch": 64,
+  "gpu_memory_gib": 10.5,
+  "momentum": 0.996,
+  "clip_low": 0.5,
+  "clip_high": 2.0,
+  "workers": 2,
+  "smoke": false,
+  "schedule_epochs": 100,
+  "split_sha256": "fe074423a6a06ea1d4388e48947048287f6fa7a1b95b9f213e34cf2fafd19cec",
+  "precision": "fp32",
+  "eval_every": 5,
+  "model": "vit-tiny-p8-d192-depth12-head4096",
+  "drop_path": 0.0,
+  "data": "/home/tako/dino-ema-experiment/data"
+}
