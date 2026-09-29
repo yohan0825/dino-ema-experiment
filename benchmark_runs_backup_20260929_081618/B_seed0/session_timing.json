@@ -1,0 +1,6 @@
+{
+  "active_wall_seconds": 51.79530415098998,
+  "train_seconds": 51.52371452499938,
+  "eval_seconds": 0.0,
+  "note": "wall includes evaluation/log/checkpoint I/O; excludes paused time and data setup."
+}

@@ -1,0 +1,7 @@
+{
+  "observed_first_epoch_train_seconds": 51.52371452499938,
+  "train_only_100_epoch_hours": 1.4312142923610938,
+  "train_only_nine_trajectories_hours": 12.880928631249844,
+  "peak_tensor_vram_mib": 3651.54541015625,
+  "warning": "Rough baseline estimate: excludes evaluation/checkpoint/setup; first epoch includes startup."
+}
